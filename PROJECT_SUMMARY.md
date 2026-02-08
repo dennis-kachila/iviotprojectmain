@@ -125,7 +125,7 @@ The IoT-based IV Fluid Monitoring and Alert System has been successfully impleme
 ### 3.1 File Structure ✅
 ```
 iviotprojectmain/
-├── main.py              # Main application logic (557 lines)
+├── main.py              # Main application logic (531 lines)
 ├── hx711.py             # HX711 load cell driver
 ├── lcd_api.py           # LCD base API
 ├── i2c_lcd.py           # I2C LCD implementation
