@@ -34,12 +34,6 @@ CONNECT_TIMEOUT_S = 15
 INTERNET_TEST_TIMEOUT_S = 5
 INTERNET_TEST_INTERVAL_S = 60
 
-MODE_ONLINE = "online"
-MODE_LOCAL_ONLY = "local_only"
-CONNECT_TIMEOUT_S = 15
-INTERNET_TEST_TIMEOUT_S = 5
-INTERNET_TEST_INTERVAL_S = 60
-
 WIFI_SSID = ""
 WIFI_PASSWORD = ""
 
@@ -152,20 +146,6 @@ class SmsSender:
                 utime.sleep_ms(250)
         self.connected = True
         return True
-
-    def test_internet(self, timeout_s=5):
-        if not urequests or not self.connected:
-            return False
-        try:
-            response = urequests.get(
-                self.endpoint,
-                headers={"apiKey": self.api_key},
-                timeout=timeout_s,
-            )
-            response.close()
-            return True
-        except Exception:
-            return False
 
     def test_internet(self, timeout_s=5):
         if not urequests or not self.connected:
@@ -302,11 +282,6 @@ def compute_percent(delivered):
     return int((delivered / FULL_BAG_ML) * 100 + 0.5)
 
 
-def check_internet_available(sms):
-    """
-    Test if internet/API is reachable.
-    Returns True only if wifi AND internet are both OK.
-    """
 def check_internet_available(sms):
     """
     Test if internet/API is reachable.
