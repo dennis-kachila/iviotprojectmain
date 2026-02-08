@@ -1,0 +1,13 @@
+# MicroPython / Pico
+# All dependencies are built into the MicroPython firmware.
+# No external packages need to be pip-installed.
+
+# Core libraries (built-in):
+# - machine, Pin, PWM, I2C
+# - utime, json, gc
+# - network, urequests
+
+# Hardware drivers (included in this project):
+# - hx711.py (load cell)
+# - lcd_api.py (LCD base)
+# - i2c_lcd.py (I2C LCD)

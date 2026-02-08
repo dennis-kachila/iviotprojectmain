@@ -1,0 +1,8 @@
+[wokwi]
+version = 1
+firmware = "micropython-20220618-v1.19.1"
+elf = "build/project.elf"
+
+[[net.forward]]
+from = "localhost:4000"
+to = "target:80"
