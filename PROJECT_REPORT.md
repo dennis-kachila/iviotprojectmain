@@ -11,12 +11,13 @@
 ## 📋 Update Log
 
 **Version 1.1 - February 8, 2026:**
-- ✅ Fixed duplicate constant definitions in main.py
+- ✅ Fixed duplicate constant definitions in main.py (saved 25 lines)
 - ✅ Fixed duplicate test_internet() method in SmsSender class
 - ✅ Fixed duplicate check_internet_available() function
 - ✅ Fixed endpoint reference bug (self.endpoint → self.sms.endpoint)
 - ✅ Code now compiles without errors
 - ✅ Code quality improved from 85% to 100%
+- ✅ main.py reduced from 735 lines to 531 lines (27% reduction)
 
 ---
 
@@ -678,7 +679,7 @@ The system has the potential to:
 
 | File | Lines | Purpose | Status |
 |------|-------|---------|--------|
-| main.py | 735 | Main application logic | ✅ Complete (minor fixes needed) |
+| main.py | 531 | Main application logic | ✅ Complete (bugs fixed) |
 | hx711.py | ~80 | Load cell driver | ✅ Complete |
 | lcd_api.py | ~100 | LCD base API | ✅ Complete |
 | i2c_lcd.py | ~80 | I2C LCD driver | ✅ Complete |
@@ -688,15 +689,15 @@ The system has the potential to:
 | wokwi.toml | 9 | Simulator config | ✅ Complete |
 | diagram.json | ~500 | Hardware diagram | ✅ Complete |
 | .gitignore | 12 | Git exclusions | ✅ Complete |
-| PROJECT_REPORT.md | This file | Progress report | ✅ Complete |
+| PROJECT_REPORT.md | 722 | Progress report | ✅ Complete |
 
 ---
 
 ## Appendix B: Key Metrics
 
 **Development Metrics:**
-- Total Source Code: ~1,000 lines (Python)
-- Documentation: ~600 lines (Markdown)
+- Total Source Code: ~800 lines (Python) - reduced from ~1,000 after removing duplicates
+- Documentation: ~900 lines (Markdown)
 - Classes Implemented: 6
 - Functions Implemented: 12+
 - GPIO Pins Used: 12
