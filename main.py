@@ -10,11 +10,6 @@ except ImportError:
     network = None
     urequests = None
 
-try:
-    import secrets
-except ImportError:
-    secrets = None
-
 from hx711 import HX711
 from i2c_lcd import I2cLcd
 
@@ -34,11 +29,12 @@ CONNECT_TIMEOUT_S = 15
 INTERNET_TEST_TIMEOUT_S = 5
 INTERNET_TEST_INTERVAL_S = 60
 
+# Default configuration (will be overridden by secrets.json if present)
 WIFI_SSID = ""
 WIFI_PASSWORD = ""
 
-SMS_USERNAME = "iviotdemo"
-SMS_RECIPIENTS = ["+254100210186", "+254703454477"]
+SMS_USERNAME = ""
+SMS_RECIPIENTS = []
 SMS_API_KEY = ""
 
 
@@ -227,38 +223,76 @@ def wait_for_press(button, timeout_s=120):
 
 
 def calibrate_with_button(hx, lcd, button):
+    # Step 1: Tare (zero the scale)
     lcd.clear()
-    lcd_line(lcd, 0, "Calibration")
-    lcd_line(lcd, 1, "Remove weight")
+    lcd_line(lcd, 0, "STEP 1/2: TARE")
+    lcd_line(lcd, 1, "Remove all weight")
     lcd_line(lcd, 2, "Press CAL to tare")
     lcd_line(lcd, 3, "")
     if not wait_for_press(button, 180):
-        return None, None
-
-    offset = hx.read_average(20)
-    if offset is None:
+        lcd.clear()
+        lcd_line(lcd, 0, "Cal timeout")
+        lcd_line(lcd, 1, "Step 1 failed")
+        utime.sleep(2)
         return None, None
 
     lcd.clear()
-    lcd_line(lcd, 0, "Place %dg" % CAL_WEIGHT_G)
-    lcd_line(lcd, 1, "Press CAL to set")
-    lcd_line(lcd, 2, "Waiting...")
+    lcd_line(lcd, 0, "STEP 1/2: TARE")
+    lcd_line(lcd, 1, "Reading...")
+    lcd_line(lcd, 2, "Please wait")
     lcd_line(lcd, 3, "")
-    if not wait_for_press(button, 240):
+    
+    offset = hx.read_average(20)
+    if offset is None:
+        lcd.clear()
+        lcd_line(lcd, 0, "Sensor error")
+        lcd_line(lcd, 1, "Step 1 failed")
+        utime.sleep(2)
         return None, None
 
+    # Step 2: Set scale with known weight
+    lcd.clear()
+    lcd_line(lcd, 0, "STEP 2/2: SCALE")
+    lcd_line(lcd, 1, "Place %dg weight" % CAL_WEIGHT_G)
+    lcd_line(lcd, 2, "Press CAL to set")
+    lcd_line(lcd, 3, "")
+    if not wait_for_press(button, 240):
+        lcd.clear()
+        lcd_line(lcd, 0, "Cal timeout")
+        lcd_line(lcd, 1, "Step 2 failed")
+        utime.sleep(2)
+        return None, None
+
+    lcd.clear()
+    lcd_line(lcd, 0, "STEP 2/2: SCALE")
+    lcd_line(lcd, 1, "Reading...")
+    lcd_line(lcd, 2, "Please wait")
+    lcd_line(lcd, 3, "")
+    
     reading = hx.read_average(20)
     if reading is None:
+        lcd.clear()
+        lcd_line(lcd, 0, "Sensor error")
+        lcd_line(lcd, 1, "Step 2 failed")
+        utime.sleep(2)
         return None, None
+    
     scale = (reading - offset) / float(CAL_WEIGHT_G)
     if scale == 0:
+        lcd.clear()
+        lcd_line(lcd, 0, "Invalid scale")
+        lcd_line(lcd, 1, "No weight change")
+        utime.sleep(2)
         return None, None
+    
     save_calibration(offset, scale)
 
     lcd.clear()
-    lcd_line(lcd, 0, "Calibration OK")
-    lcd_line(lcd, 1, "Saved")
-    utime.sleep(1)
+    lcd_line(lcd, 0, "Cal Complete!")
+    lcd_line(lcd, 1, "Data saved")
+    lcd_line(lcd, 2, "Offset: %d" % int(offset))
+    lcd_line(lcd, 3, "Scale: %.2f" % scale)
+    utime.sleep(3)
     return offset, scale
 
 
@@ -297,13 +331,6 @@ def check_internet_available(sms):
 
 def apply_secrets():
     global WIFI_SSID, WIFI_PASSWORD, SMS_USERNAME, SMS_RECIPIENTS, SMS_API_KEY
-    if secrets:
-        WIFI_SSID = getattr(secrets, "WIFI_SSID", WIFI_SSID)
-        WIFI_PASSWORD = getattr(secrets, "WIFI_PASSWORD", WIFI_PASSWORD)
-        SMS_USERNAME = getattr(secrets, "SMS_USERNAME", SMS_USERNAME)
-        SMS_RECIPIENTS = getattr(secrets, "SMS_RECIPIENTS", SMS_RECIPIENTS)
-        SMS_API_KEY = getattr(secrets, "SMS_API_KEY", SMS_API_KEY)
-
     data = load_secrets_json()
     if not data:
         return
@@ -357,12 +384,24 @@ def main():
     mode_str = "ONLINE" if mode == MODE_ONLINE else "LOCAL ONLY"
     lcd_line(lcd, 0, "WiFi: %s" % ("OK" if wifi_ok else "OFF"))
     lcd_line(lcd, 1, "Mode: %s" % mode_str)
-    lcd_line(lcd, 2, "Loading calib")
+    lcd_line(lcd, 2, "Checking calib...")
     utime.sleep(1)
 
     offset, scale = load_calibration()
     if offset is None or scale is None:
+        lcd.clear()
+        lcd_line(lcd, 0, "No calibration")
+        lcd_line(lcd, 1, "found. Starting")
+        lcd_line(lcd, 2, "calibration...")
+        utime.sleep(2)
         offset, scale = calibrate_with_button(hx, lcd, btn_cal)
+    else:
+        lcd.clear()
+        lcd_line(lcd, 0, "Calibration OK")
+        lcd_line(lcd, 1, "Loaded from file")
+        lcd_line(lcd, 2, "Offset: %d" % int(offset))
+        lcd_line(lcd, 3, "Scale: %.2f" % scale)
+        utime.sleep(2)
 
     if not isinstance(offset, (int, float)) or not isinstance(scale, (int, float)) or offset is None or scale is None:
         lcd.clear()
