@@ -10,11 +10,6 @@ except ImportError:
     network = None
     urequests = None
 
-try:
-    import secrets
-except ImportError:
-    secrets = None
-
 from hx711 import HX711
 from i2c_lcd import I2cLcd
 
@@ -297,13 +292,6 @@ def check_internet_available(sms):
 
 def apply_secrets():
     global WIFI_SSID, WIFI_PASSWORD, SMS_USERNAME, SMS_RECIPIENTS, SMS_API_KEY
-    if secrets:
-        WIFI_SSID = getattr(secrets, "WIFI_SSID", WIFI_SSID)
-        WIFI_PASSWORD = getattr(secrets, "WIFI_PASSWORD", WIFI_PASSWORD)
-        SMS_USERNAME = getattr(secrets, "SMS_USERNAME", SMS_USERNAME)
-        SMS_RECIPIENTS = getattr(secrets, "SMS_RECIPIENTS", SMS_RECIPIENTS)
-        SMS_API_KEY = getattr(secrets, "SMS_API_KEY", SMS_API_KEY)
-
     data = load_secrets_json()
     if not data:
         return
