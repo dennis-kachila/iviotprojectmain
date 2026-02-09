@@ -34,7 +34,9 @@ class LcdApi:
 
     def putstr_at(self, string, line):
         self.move_to(0, line)
-        self.putstr(string.ljust(self.num_columns)[: self.num_columns])
+        # Manual padding since MicroPython doesn't have ljust()
+        padded = string + " " * (self.num_columns - len(string)) if len(string) < self.num_columns else string
+        self.putstr(padded[:self.num_columns])
 
     def show_splash(self, lines, delay_ms=1200):
         self.clear()
