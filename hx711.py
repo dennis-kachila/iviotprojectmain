@@ -1,6 +1,15 @@
 from machine import Pin
 import utime
 
+# Optional logging support
+try:
+    from logger import debug, error
+except ImportError:
+    def debug(msg):
+        pass
+    def error(msg):
+        pass
+
 
 class HX711:
     def __init__(self, dout_pin, pd_sck_pin, gain=128):
@@ -22,8 +31,11 @@ class HX711:
         start = utime.ticks_ms()
         while not self.is_ready():
             if utime.ticks_diff(utime.ticks_ms(), start) > timeout_ms:
+                error("HX711 read_raw timeout after %d ms" % timeout_ms)
                 return None
             utime.sleep_ms(1)
+
+        debug("HX711 device ready, reading data")
 
         data = 0
         for _ in range(24):

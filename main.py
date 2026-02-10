@@ -12,6 +12,7 @@ except ImportError:
 
 from hx711 import HX711
 from i2c_lcd import I2cLcd
+from logger import get_logger, info, warning, error, critical
 
 
 FULL_BAG_ML = 1500
@@ -355,9 +356,14 @@ def load_secrets_json():
 
 
 def main():
+    # Initialize logger
+    log = get_logger("system.log")
+    info("=== IV Monitor System Booting ===")
+    
     apply_secrets()
     i2c = I2C(0, sda=Pin(PIN_I2C_SDA), scl=Pin(PIN_I2C_SCL), freq=400000)
     lcd = I2cLcd(i2c, 0x27, 4, 20)
+    info("GPIO and I2C initialized")
 
     led_red = Pin(PIN_LED_RED, Pin.OUT)
     led_yellow = Pin(PIN_LED_YELLOW, Pin.OUT)
@@ -375,9 +381,18 @@ def main():
     lcd.show_splash(["IV Monitor", "Booting..."])
 
     sms = SmsSender(WIFI_SSID, WIFI_PASSWORD, SMS_USERNAME, SMS_RECIPIENTS, SMS_API_KEY)
+    info("Attempting WiFi connection...")
     wifi_ok = sms.connect_wifi()
+    if wifi_ok:
+        info("WiFi connected successfully")
+    else:
+        warning("WiFi connection failed")
 
     mode = MODE_ONLINE if wifi_ok and check_internet_available(sms) else MODE_LOCAL_ONLY
+    if mode == MODE_ONLINE:
+        info("Mode: ONLINE (WiFi + Internet OK)")
+    else:
+        info("Mode: LOCAL_ONLY (no WiFi or no internet)")
     last_internet_check = utime.ticks_ms()
 
     lcd.clear()
@@ -389,13 +404,19 @@ def main():
 
     offset, scale = load_calibration()
     if offset is None or scale is None:
+        info("No calibration found. Starting calibration process...")
         lcd.clear()
         lcd_line(lcd, 0, "No calibration")
         lcd_line(lcd, 1, "found. Starting")
         lcd_line(lcd, 2, "calibration...")
         utime.sleep(2)
         offset, scale = calibrate_with_button(hx, lcd, btn_cal)
+        if offset is not None and scale is not None:
+            info("Calibration successful: offset=%d, scale=%.2f" % (int(offset), scale))
+        else:
+            error("Calibration failed")
     else:
+        info("Calibration loaded from file: offset=%d, scale=%.2f" % (int(offset), scale))
         lcd.clear()
         lcd_line(lcd, 0, "Calibration OK")
         lcd_line(lcd, 1, "Loaded from file")
@@ -404,6 +425,7 @@ def main():
         utime.sleep(2)
 
     if not isinstance(offset, (int, float)) or not isinstance(scale, (int, float)) or offset is None or scale is None:
+        critical("Sensor fault: Invalid calibration data")
         lcd.clear()
         lcd_line(lcd, 0, "Sensor fault")
         lcd_line(lcd, 1, "Check load")
@@ -411,6 +433,7 @@ def main():
         while True:
             buzzer.update()
             if btn_term.pressed():
+                info("Terminated by user")
                 buzzer.set_mode(Buzzer.MODE_OFF)
                 lcd.clear()
                 lcd_line(lcd, 0, "SESSION ENDED")
@@ -421,11 +444,13 @@ def main():
     alarm_silenced = False
     last_alarm = None
 
+    info("=== Monitoring Started ===")
     lcd.clear()
     lcd_line(lcd, 0, "Monitoring...")
     mode_str = "ONLINE" if mode == MODE_ONLINE else "LOCAL"
 
     if mode == MODE_ONLINE and not sms_flags["start"]:
+        info("Sending start SMS: 0% delivered")
         sms.send("IV monitoring started (0% delivered).")
         sms_flags["start"] = True
 
@@ -436,9 +461,14 @@ def main():
             mode = MODE_ONLINE if wifi_ok and check_internet_available(sms) else MODE_LOCAL_ONLY
             if mode != prev_mode:
                 mode_str = "ONLINE" if mode == MODE_ONLINE else "LOCAL"
+                if mode == MODE_ONLINE:
+                    info("Mode switched to ONLINE")
+                else:
+                    warning("Mode switched to LOCAL_ONLY")
             last_internet_check = now
 
         if btn_term.pressed():
+            info("TERM button pressed - ending session")
             buzzer.set_mode(Buzzer.MODE_OFF)
             led_red.value(0)
             led_yellow.value(0)
@@ -448,13 +478,16 @@ def main():
             return
 
         if btn_cal.pressed():
+            info("CAL button pressed - starting recalibration")
             buzzer.set_mode(Buzzer.MODE_OFF)
             new_offset, new_scale = calibrate_with_button(hx, lcd, btn_cal)
             if new_offset is not None and new_scale is not None:
                 offset, scale = new_offset, new_scale
+                info("Recalibration successful: offset=%d, scale=%.2f" % (int(offset), scale))
                 lcd.clear()
                 lcd_line(lcd, 0, "Monitoring...")
             else:
+                error("Recalibration failed")
                 lcd.clear()
                 lcd_line(lcd, 0, "Cal failed")
                 lcd_line(lcd, 1, "Keep previous")
@@ -463,9 +496,11 @@ def main():
                 lcd_line(lcd, 0, "Monitoring...")
 
         if btn_ack.pressed():
+            info("ACK button pressed - silencing alarm")
             alarm_silenced = True
 
         if btn_new.pressed():
+            info("NEW button pressed - starting new IV monitoring")
             alarm_silenced = False
             sms_flags = {"start": False, "25": False, "50": False, "100": False, "low": False}
             lcd.clear()
@@ -476,11 +511,13 @@ def main():
             lcd.clear()
             lcd_line(lcd, 0, "Monitoring...")
             if mode == MODE_ONLINE and not sms_flags["start"]:
+                info("Sending start SMS for new IV: 0% delivered")
                 sms.send("IV monitoring started (0% delivered).")
                 sms_flags["start"] = True
 
         raw = hx.read_average(5)
         if raw is None:
+            error("Sensor fault: HX711 timeout (no data)")
             buzzer.set_mode(Buzzer.MODE_FAULT)
             lcd.clear()
             lcd_line(lcd, 0, "Sensor fault")
@@ -491,6 +528,7 @@ def main():
             continue
 
         if offset is None or scale is None or scale == 0:
+            error("Sensor fault: Bad calibration data")
             buzzer.set_mode(Buzzer.MODE_FAULT)
             lcd.clear()
             lcd_line(lcd, 0, "Sensor fault")
@@ -502,6 +540,7 @@ def main():
 
         grams = (raw - offset) / scale
         if grams < -50 or grams > FULL_BAG_ML + 500:
+            error("Sensor fault: Reading out of range (grams=%.1f)" % grams)
             buzzer.set_mode(Buzzer.MODE_FAULT)
             lcd.clear()
             lcd_line(lcd, 0, "Sensor fault")
@@ -541,23 +580,30 @@ def main():
         if remaining <= LOW_CRITICAL_ML:
             lcd_line(lcd, 3, "Status: LOW")
             if mode == MODE_ONLINE and not sms_flags["low"]:
+                warning("Low volume alert: %d mL remaining" % remaining)
+                info("Sending low volume SMS")
                 sms.send("IV low volume (%d mL)." % remaining)
                 sms_flags["low"] = True
             elif mode == MODE_LOCAL_ONLY and not sms_flags["low"]:
+                warning("Low volume alert (SMS disabled, LOCAL mode): %d mL" % remaining)
                 lcd_line(lcd, 3, "LOW SMS:OFF")
                 sms_flags["low"] = True
 
         if percent >= 25 and not sms_flags["25"]:
             if mode == MODE_ONLINE:
+                info("Sending 25% SMS milestone")
                 sms.send("IV delivered 25%.")
             sms_flags["25"] = True
         if percent >= 50 and not sms_flags["50"]:
             if mode == MODE_ONLINE:
+                info("Sending 50% SMS milestone")
                 sms.send("IV delivered 50%.")
             sms_flags["50"] = True
         if percent >= 100 and not sms_flags["100"]:
+            info("IV infusion complete at 100%")
             lcd_line(lcd, 3, "Status: DONE")
             if mode == MODE_ONLINE:
+                info("Sending completion SMS")
                 sms.send("IV completed 100%.")
             sms_flags["100"] = True
 
