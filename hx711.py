@@ -5,9 +5,9 @@ import utime
 try:
     from logger import debug, error
 except ImportError:
-    def debug(msg):
+    def debug(message):
         pass
-    def error(msg):
+    def error(message):
         pass
 
 
