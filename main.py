@@ -666,7 +666,7 @@ def main():
     
     state = config.STATE_PRESCRIPTION_INPUT
     prescription = Prescription()
-    monitoring_state = None
+    monitoring_state = None  # type: MonitoringState | None
     
     alarm_silenced = False
     last_network_check = utime.time()
@@ -707,7 +707,7 @@ def main():
             lcd_line(lcd, 0, "PRESCRIPTION SET")
             lcd_line(lcd, 1, f"Vol: {prescription.target_volume_ml} mL")
             lcd_line(lcd, 2, f"Time: {prescription.duration_minutes} min")
-            lcd_line(lcd, 3, f"Set: {int(prescription.gtt_per_min_target)} gtt/min")
+            lcd_line(lcd, 3, f"Set: {int(prescription.gtt_per_min_target or 0)} gtt/min")
             utime.sleep(3)
             
             # Initialize monitoring state
@@ -732,6 +732,11 @@ def main():
         # ====================================================================
         
         elif state == config.STATE_MONITORING:
+            # Ensure monitoring_state is initialized
+            if monitoring_state is None:
+                warning("Monitoring state not initialized, returning to prescription")
+                state = config.STATE_PRESCRIPTION_INPUT
+                continue
             
             # Update sensors
             drop_detected = drop_sensor.update()
@@ -860,6 +865,11 @@ def main():
         # ====================================================================
         
         elif state == config.STATE_BUBBLE_ALARM:
+            # Ensure monitoring_state is initialized
+            if monitoring_state is None:
+                state = config.STATE_PRESCRIPTION_INPUT
+                continue
+            
             info("State: BUBBLE ALARM")
             
             # Display bubble alert
@@ -901,6 +911,11 @@ def main():
         # ====================================================================
         
         elif state == config.STATE_NO_FLOW:
+            # Ensure monitoring_state is initialized
+            if monitoring_state is None:
+                state = config.STATE_PRESCRIPTION_INPUT
+                continue
+            
             info("State: NO FLOW")
             
             lcd.clear()
@@ -949,6 +964,11 @@ def main():
         # ====================================================================
         
         elif state == config.STATE_TIME_ELAPSED:
+            # Ensure monitoring_state is initialized
+            if monitoring_state is None:
+                state = config.STATE_PRESCRIPTION_INPUT
+                continue
+            
             info("State: TIME ELAPSED (underdelivered)")
             
             lcd.clear()
@@ -998,6 +1018,11 @@ def main():
         # ====================================================================
         
         elif state == config.STATE_COMPLETE:
+            # Ensure monitoring_state is initialized
+            if monitoring_state is None:
+                state = config.STATE_PRESCRIPTION_INPUT
+                continue
+            
             info("State: COMPLETE")
             
             lcd.clear()
