@@ -14,6 +14,9 @@ from hx711 import HX711
 from i2c_lcd import I2cLcd
 from logger import get_logger, info, warning, error, critical
 
+# Simulation mode: Set to True for Wokwi testing (bypasses real sensor)
+SIMULATION_MODE = False
+
 
 FULL_BAG_ML = 1500
 LOW_CRITICAL_ML = 200
@@ -243,7 +246,14 @@ def calibrate_with_button(hx, lcd, button):
     lcd_line(lcd, 2, "Please wait")
     lcd_line(lcd, 3, "")
     
-    offset = hx.read_average(20)
+    # In simulation mode, use mock values instead of real sensor
+    if SIMULATION_MODE:
+        info("SIMULATION MODE: Using mock calibration values")
+        offset = -453021
+        utime.sleep_ms(500)  # Simulate reading time
+    else:
+        offset = hx.read_average(20)
+    
     if offset is None:
         lcd.clear()
         lcd_line(lcd, 0, "Sensor error")
@@ -270,7 +280,13 @@ def calibrate_with_button(hx, lcd, button):
     lcd_line(lcd, 2, "Please wait")
     lcd_line(lcd, 3, "")
     
-    reading = hx.read_average(20)
+    # In simulation mode, use mock scale value
+    if SIMULATION_MODE:
+        reading = offset + (500 * 907)  # Mock: 500g = 453500 raw units
+        utime.sleep_ms(500)  # Simulate reading time
+    else:
+        reading = hx.read_average(20)
+    
     if reading is None:
         lcd.clear()
         lcd_line(lcd, 0, "Sensor error")
@@ -356,8 +372,8 @@ def load_secrets_json():
 
 
 def main():
-    # Initialize logger
-    log = get_logger("system.log")
+    # Initialize logger (uses system.txt for Wokwi compatibility)
+    log = get_logger("system.txt")
     info("=== IV Monitor System Booting ===")
     
     apply_secrets()
@@ -443,8 +459,11 @@ def main():
     sms_flags = {"start": False, "25": False, "50": False, "100": False, "low": False}
     alarm_silenced = False
     last_alarm = None
+    monitoring_start_time = utime.ticks_ms()  # Track monitoring start for simulation
 
     info("=== Monitoring Started ===")
+    if SIMULATION_MODE:
+        info("SIMULATION MODE: Using mock sensor readings")
     lcd.clear()
     lcd_line(lcd, 0, "Monitoring...")
     mode_str = "ONLINE" if mode == MODE_ONLINE else "LOCAL"
@@ -507,7 +526,14 @@ def main():
             lcd_line(lcd, 0, "New IV")
             lcd_line(lcd, 1, "Taring...")
             utime.sleep(2)
-            offset = hx.read_average(15)
+            
+            # In simulation mode, use fixed offset; otherwise read from sensor
+            if SIMULATION_MODE:
+                offset = -453021
+            else:
+                offset = hx.read_average(15)
+            
+            monitoring_start_time = utime.ticks_ms()  # Reset start time for new IV
             lcd.clear()
             lcd_line(lcd, 0, "Monitoring...")
             if mode == MODE_ONLINE and not sms_flags["start"]:
@@ -516,6 +542,15 @@ def main():
                 sms_flags["start"] = True
 
         raw = hx.read_average(5)
+        
+        # In simulation mode, generate realistic decreasing values (simulating IV delivery)
+        if SIMULATION_MODE:
+            elapsed_seconds = (utime.ticks_ms() - monitoring_start_time) / 1000.0
+            # Simulate IV delivery over ~60 seconds (1500 mL = full bag)
+            simulated_grams = 1500 - (elapsed_seconds * 25)  # 25 mL/second
+            simulated_grams = max(0, min(1500, simulated_grams))
+            raw = int(offset + (simulated_grams * scale))
+        
         if raw is None:
             error("Sensor fault: HX711 timeout (no data)")
             buzzer.set_mode(Buzzer.MODE_FAULT)
