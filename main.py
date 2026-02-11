@@ -904,6 +904,7 @@ def main():
                 state = config.STATE_MONITORING
             
             if btn_term.pressed():
+                info("Terminate button pressed from bubble alarm state")
                 state = config.STATE_TERMINATED
         
         # ====================================================================
@@ -954,9 +955,11 @@ def main():
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_new.pressed():
+                info("New IV button pressed from no-flow state")
                 state = config.STATE_PRESCRIPTION_INPUT
             
             if btn_term.pressed():
+                info("Terminate button pressed from no-flow state")
                 state = config.STATE_TERMINATED
         
         # ====================================================================
@@ -1008,9 +1011,11 @@ def main():
                 state = config.STATE_MONITORING
             
             if btn_new.pressed():
+                info("New IV button pressed from time-elapsed state")
                 state = config.STATE_PRESCRIPTION_INPUT
             
             if btn_term.pressed():
+                info("Terminate button pressed from time-elapsed state")
                 state = config.STATE_TERMINATED
         
         # ====================================================================
@@ -1049,14 +1054,17 @@ def main():
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_ack.pressed():
+                info("Acknowledge button pressed from complete state")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_new.pressed():
+                info("New IV button pressed from complete state")
                 state = config.STATE_PRESCRIPTION_INPUT
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_term.pressed():
+                info("Terminate button pressed from complete state")
                 state = config.STATE_TERMINATED
         
         # Update buzzer

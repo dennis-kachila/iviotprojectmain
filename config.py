@@ -116,8 +116,8 @@ STATE_TERMINATED = "terminated"
 # LCD DISPLAY SETTINGS
 # ============================================================================
 
-LCD_ROWS = 4
-LCD_COLS = 20
+LCD_ROWS = 2
+LCD_COLS = 16
 
 # Display update interval (milliseconds)
 LCD_UPDATE_INTERVAL_MS = 500
