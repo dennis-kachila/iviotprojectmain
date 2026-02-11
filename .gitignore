@@ -4,8 +4,11 @@ __pycache__/
 *.pyo
 *.pyd
 *.log
+system.txt
+system.txt.bak
 calibration.json
 secrets.json
 secrets.py
 .DS_Store
 .vscode/
+.micropico
