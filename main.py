@@ -82,6 +82,7 @@ class Buzzer:
     MODE_FAULT = "fault"
     MODE_BUBBLE = "bubble"
     MODE_NO_FLOW = "no_flow"
+    MODE_ACK = "ack"  # Brief beep for button feedback
 
     def __init__(self, pin, freq=2000):
         self.pwm = PWM(Pin(pin))
@@ -89,16 +90,28 @@ class Buzzer:
         self.mode = self.MODE_OFF
         self._last_toggle = utime.ticks_ms()
         self._state = 0
+        self._ack_start_time = 0
 
     def set_mode(self, mode):
         if mode != self.mode:
             self.mode = mode
             self._state = 0
             self._last_toggle = utime.ticks_ms()
+            if mode == self.MODE_ACK:
+                self._ack_start_time = utime.ticks_ms()
 
     def update(self):
         """Update buzzer state based on current mode"""
         now = utime.ticks_ms()
+        
+        # Auto-off for acknowledgment beep (100ms duration)
+        if self.mode == self.MODE_ACK:
+            if utime.ticks_diff(now, self._ack_start_time) < 100:
+                self.pwm.duty_u16(config.BUZZER_ON_DUTY * 64)
+            else:
+                self.mode = self.MODE_OFF
+                self.pwm.duty_u16(0)
+            return
         
         if self.mode == self.MODE_OFF:
             self.pwm.duty_u16(0)
@@ -661,6 +674,14 @@ def main():
     utime.sleep(2)
     
     # ========================================================================
+    # BUTTON PRESS FEEDBACK HELPER
+    # ========================================================================
+    
+    def button_press_feedback(buzzer):
+        """Provide brief buzzer feedback for button presses"""
+        buzzer.set_mode(Buzzer.MODE_ACK)
+    
+    # ========================================================================
     # MAIN STATE MACHINE LOOP
     # ========================================================================
     
@@ -834,17 +855,20 @@ def main():
             
             # Button checks
             if btn_ack.pressed():
+                button_press_feedback(buzzer)
                 info("Acknowledge button pressed")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_new.pressed():
+                button_press_feedback(buzzer)
                 info("New IV button pressed")
                 state = config.STATE_PRESCRIPTION_INPUT
                 buzzer.set_mode(Buzzer.MODE_OFF)
                 continue
             
             if btn_cal.pressed():
+                button_press_feedback(buzzer)
                 info("Calibration button pressed - resetting counters")
                 drop_sensor.reset()
                 monitoring_state.reset_counters()
@@ -856,6 +880,7 @@ def main():
                 utime.sleep(2)
             
             if btn_term.pressed():
+                button_press_feedback(buzzer)
                 info("Terminate button pressed")
                 state = config.STATE_TERMINATED
                 continue
@@ -897,6 +922,7 @@ def main():
             
             # Wait for acknowledge
             if btn_ack.pressed():
+                button_press_feedback(buzzer)
                 info("Bubble acknowledged")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
@@ -904,6 +930,7 @@ def main():
                 state = config.STATE_MONITORING
             
             if btn_term.pressed():
+                button_press_feedback(buzzer)
                 info("Terminate button pressed from bubble alarm state")
                 state = config.STATE_TERMINATED
         
@@ -950,15 +977,18 @@ def main():
                 state = config.STATE_MONITORING
             
             if btn_ack.pressed():
+                button_press_feedback(buzzer)
                 info("No-flow acknowledged")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_new.pressed():
+                button_press_feedback(buzzer)
                 info("New IV button pressed from no-flow state")
                 state = config.STATE_PRESCRIPTION_INPUT
             
             if btn_term.pressed():
+                button_press_feedback(buzzer)
                 info("Terminate button pressed from no-flow state")
                 state = config.STATE_TERMINATED
         
@@ -1005,16 +1035,19 @@ def main():
                 state = config.STATE_COMPLETE
             
             if btn_ack.pressed():
+                button_press_feedback(buzzer)
                 info("Time elapsed acknowledged")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
                 state = config.STATE_MONITORING
             
             if btn_new.pressed():
+                button_press_feedback(buzzer)
                 info("New IV button pressed from time-elapsed state")
                 state = config.STATE_PRESCRIPTION_INPUT
             
             if btn_term.pressed():
+                button_press_feedback(buzzer)
                 info("Terminate button pressed from time-elapsed state")
                 state = config.STATE_TERMINATED
         
@@ -1054,16 +1087,19 @@ def main():
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_ack.pressed():
+                button_press_feedback(buzzer)
                 info("Acknowledge button pressed from complete state")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_new.pressed():
+                button_press_feedback(buzzer)
                 info("New IV button pressed from complete state")
                 state = config.STATE_PRESCRIPTION_INPUT
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_term.pressed():
+                button_press_feedback(buzzer)
                 info("Terminate button pressed from complete state")
                 state = config.STATE_TERMINATED
         
