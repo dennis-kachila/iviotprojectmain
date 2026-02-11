@@ -379,8 +379,8 @@ class MonitoringState:
 
 def lcd_line(lcd, line, text):
     """Display text on specific LCD line"""
-    lcd.move_to(0, line)
-    lcd.putstr(text.ljust(config.LCD_COLS))
+    # Use putstr_at which handles padding (MicroPython doesn't have ljust)
+    lcd.putstr_at(text, line)
 
 
 def update_leds(led_red, led_yellow, led_green, remaining_ml):
