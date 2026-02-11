@@ -1,7 +1,7 @@
 """
 Custom logging module for MicroPython on Raspberry Pi Pico
 Writes logs to file with timestamp, log level, and message
-Default file: system.txt (for Wokwi simulator compatibility)
+Default file: system.log (for real hardware Pico deployment)
 """
 
 import utime
@@ -26,12 +26,12 @@ class Logger:
         50: "CRITICAL",
     }
     
-    def __init__(self, log_file="system.txt", max_file_size=50000, level=INFO):
+    def __init__(self, log_file="system.log", max_file_size=50000, level=INFO):
         """
         Initialize logger
         
         Args:
-            log_file: Path to log file (default: system.txt for Wokwi compatibility)
+            log_file: Path to log file (default: system.log for Pico hardware)
             max_file_size: Max file size before rotation (bytes)
             level: Minimum log level to write (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """

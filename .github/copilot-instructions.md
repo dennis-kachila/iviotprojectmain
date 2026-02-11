@@ -259,10 +259,10 @@ When sensor fault: Display "Sensor fault" + error description.
 - `CRITICAL` - Fatal conditions (sensor fault, invalid calibration)
 
 **Log Output:**
-- File: `system.txt` (max 50KB, rotates to `system.txt.bak`)
+- File: `system.log` (max 50KB, rotates to `system.log.bak`)
 - Format: `[YYYY-MM-DD HH:MM:SS] [LEVEL] message`
 - Example: `[2026-02-10 14:32:45] [INFO] WiFi connected successfully`
-- Note: Uses `.txt` extension for Wokwi simulator compatibility (Wokwi doesn't support `.log` files)
+- Note: Uses `.log` extension for real hardware Pico deployment
 
 **Usage in Code:**
 ```python
@@ -284,13 +284,15 @@ critical("Invalid calibration data")
 **Reading Logs:**
 ```python
 from logger import read_log, clear_log
-logs = read_log(50)  # Last 50 lines from system.txt
+logs = read_log(50)  # Last 50 lines from system.log
 clear_log()          # Clear log file
 ```
 
-**Accessing Logs in Wokwi:**
-- Check `system.txt` file in Wokwi file explorer
-- Check `system.txt.bak` for rotated/archived logs
+**Accessing Logs on Real Hardware (Pico):**
+- Connect Pico via USB
+- Check `system.log` file in Pico disk/file explorer
+- Check `system.log.bak` for rotated/archived logs
+- Use MicroPython REPL to read logs:
 
 **Troubleshooting:**
 - If `system.log` grows large, it automatically rotates
