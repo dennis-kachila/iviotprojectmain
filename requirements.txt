@@ -8,7 +8,9 @@
 # - network, urequests
 
 # Hardware drivers (included in this project):
-# - hx711.py (load cell)
 # - lcd_api.py (LCD base)
 # - i2c_lcd.py (I2C LCD)
 # - logger.py (file-based logging system)
+# - keypad.py (4x3 membrane keypad)
+# - sensors.py (Drop IR and Bubble detection)
+# - config.py (system configuration constants)
