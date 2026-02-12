@@ -415,23 +415,19 @@ def update_leds(led_red, led_yellow, led_green, remaining_ml):
 def display_prescription_input(lcd, prompt, buffer):
     """Display prescription input screen"""
     lcd.clear()
-    lcd_line(lcd, 0, "IV PRESCRIPTION")
+    lcd_line(lcd, 0, "IV PRESCRPTON")
     lcd_line(lcd, 1, prompt)
     lcd_line(lcd, 2, f"Input: {buffer}")
-    lcd_line(lcd, 3, "#=OK *=Back/Default")
+    lcd_line(lcd, 3, "#=OK *=Back")
 
 
 def display_monitoring(lcd, state):
     """Display monitoring screen"""
-    # Line 0: Volume delivered/total
-    lcd_line(lcd, 0, f"VOL {int(state.delivered_ml):03d}/{int(state.prescription.target_volume_ml):03d} mL")
+    # Line 0: Delivered volume and percentage (shortened for 16 chars)
+    lcd_line(lcd, 0, f"V:{int(state.delivered_ml):3d}mL {int(state.percent_delivered):3d}%")
     
-    # Line 1: Percentage and remaining
-    lcd_line(lcd, 1, f"% {int(state.percent_delivered):02d}  Rem {int(state.remaining_ml):03d}mL")
-    
-    # Line 2: Current rate
-    rate_text = f"Rate {int(state.gtt_per_min_measured):02d}gtt {int(state.ml_per_hr_measured):02d}mLh"
-    lcd_line(lcd, 2, rate_text)
+    # Line 1: Remaining and rate (shortened for 16 chars)
+    lcd_line(lcd, 1, f"Rem:{int(state.remaining_ml):3d}mL {int(state.gtt_per_min_measured):2d}gt")
     
     # Line 3: Mode status (set externally)
 
@@ -489,9 +485,9 @@ def check_internet_available(sms):
 def input_volume(lcd, keypad_input):
     """Input target volume via keypad"""
     lcd.clear()
-    lcd_line(lcd, 0, "IV PRESCRIPTION")
-    lcd_line(lcd, 1, "Enter Volume (mL):")
-    lcd_line(lcd, 3, "#=OK *=Backspace")
+    lcd_line(lcd, 0, "IV PRESCRPTON")
+    lcd_line(lcd, 1, "Entry Vol (mL):")
+    lcd_line(lcd, 3, "#=OK *=Backsp")
     
     keypad_input.clear()
     
@@ -519,9 +515,9 @@ def input_volume(lcd, keypad_input):
 def input_duration(lcd, keypad_input):
     """Input duration via keypad"""
     lcd.clear()
-    lcd_line(lcd, 0, "IV PRESCRIPTION")
-    lcd_line(lcd, 1, "Enter Time (min):")
-    lcd_line(lcd, 3, "#=OK *=Backspace")
+    lcd_line(lcd, 0, "IV PRESCRPTON")
+    lcd_line(lcd, 1, "Time (min):")
+    lcd_line(lcd, 3, "#=OK *=Backsp")
     
     keypad_input.clear()
     
@@ -549,9 +545,9 @@ def input_duration(lcd, keypad_input):
 def input_drip_factor(lcd, keypad_input):
     """Input drip factor via keypad (optional)"""
     lcd.clear()
-    lcd_line(lcd, 0, "IV PRESCRIPTION")
-    lcd_line(lcd, 1, f"Drip Factor gtt/mL")
-    lcd_line(lcd, 2, f"*=Use Default ({config.DEFAULT_DRIP_FACTOR})")
+    lcd_line(lcd, 0, "IV PRESCRPTON")
+    lcd_line(lcd, 1, f"Drip gtt/mL")
+    lcd_line(lcd, 2, f"*=Dflt {config.DEFAULT_DRIP_FACTOR}")
     lcd_line(lcd, 3, "#=OK")
     
     keypad_input.clear()
@@ -633,8 +629,8 @@ def main():
     
     # Display splash screen
     lcd.clear()
-    lcd_line(lcd, 0, "IV MONITORING SYSTEM")
-    lcd_line(lcd, 1, "Drop Counter + Bubble")
+    lcd_line(lcd, 0, "IV MONITOR")
+    lcd_line(lcd, 1, "Drop+Bubble Det")
     lcd_line(lcd, 2, "Booting...")
     utime.sleep(2)
     
@@ -644,18 +640,18 @@ def main():
     
     info("Checking network connectivity...")
     lcd.clear()
-    lcd_line(lcd, 0, "Checking Network...")
+    lcd_line(lcd, 0, "Network Check...")
     
     mode = config.MODE_LOCAL_ONLY
     
     # Try WiFi connection
     if WIFI_SSID:
-        lcd_line(lcd, 1, "Connecting WiFi...")
+        lcd_line(lcd, 1, "WiFi Connect...")
         if sms.connect_wifi(WIFI_SSID, WIFI_PASSWORD, config.CONNECT_TIMEOUT_S):
             lcd_line(lcd, 1, "WiFi: OK")
             
             # Test internet
-            lcd_line(lcd, 2, "Testing Internet...")
+            lcd_line(lcd, 2, "Internet Test...")
             if check_internet_available(sms):
                 mode = config.MODE_ONLINE
                 lcd_line(lcd, 2, "Internet: OK")
@@ -667,7 +663,7 @@ def main():
             lcd_line(lcd, 1, "WiFi: FAIL")
             warning("Mode: LOCAL-ONLY (No WiFi)")
     else:
-        lcd_line(lcd, 1, "No WiFi configured")
+        lcd_line(lcd, 1, "No WiFi Config")
         warning("Mode: LOCAL-ONLY (No credentials)")
     
     lcd_line(lcd, 3, f"Mode: {mode.upper()}")
@@ -704,7 +700,7 @@ def main():
         if state == config.STATE_PRESCRIPTION_INPUT:
             info("State: PRESCRIPTION INPUT")
             lcd.clear()
-            lcd_line(lcd, 0, "PRESCRIPTION ENTRY")
+            lcd_line(lcd, 0, "PRESCRPTON ENTRY")
             lcd_line(lcd, 1, "Preparing...")
             utime.sleep(1)
             
@@ -725,10 +721,9 @@ def main():
             
             # Display calculated rate
             lcd.clear()
-            lcd_line(lcd, 0, "PRESCRIPTION SET")
-            lcd_line(lcd, 1, f"Vol: {prescription.target_volume_ml} mL")
-            lcd_line(lcd, 2, f"Time: {prescription.duration_minutes} min")
-            lcd_line(lcd, 3, f"Set: {int(prescription.gtt_per_min_target or 0)} gtt/min")
+            lcd_line(lcd, 0, "PRESCRPTON SET")
+            lcd_line(lcd, 1, f"V:{prescription.target_volume_ml}mL T:{prescription.duration_minutes}m")
+            lcd_line(lcd, 3, f"{int(prescription.gtt_per_min_target or 0)} gtt/min")
             utime.sleep(3)
             
             # Initialize monitoring state
@@ -802,17 +797,8 @@ def main():
             if utime.ticks_diff(now_ms, last_lcd_update) >= config.LCD_UPDATE_INTERVAL_MS:
                 display_monitoring(lcd, monitoring_state)
                 
-                # Line 3: Status
-                if monitoring_state.remaining_ml < config.LOW_VOLUME_THRESHOLD_ML:
-                    if mode == config.MODE_ONLINE:
-                        lcd_line(lcd, 3, "LOW VOLUME ALERT")
-                    else:
-                        lcd_line(lcd, 3, "LOW VOL SMS:OFF")
-                else:
-                    if mode == config.MODE_ONLINE:
-                        lcd_line(lcd, 3, "ONLINE  SMS ON")
-                    else:
-                        lcd_line(lcd, 3, "LOCAL ONLY SMS OFF")
+                # Line 3: Status (for 16x2, monitoring uses only 2 lines)
+                # Status shown via LEDs and buzzer instead
                 
                 last_lcd_update = now_ms
             
@@ -855,32 +841,27 @@ def main():
             
             # Button checks
             if btn_ack.pressed():
-                button_press_feedback(buzzer)
                 info("Acknowledge button pressed")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_new.pressed():
-                button_press_feedback(buzzer)
                 info("New IV button pressed")
                 state = config.STATE_PRESCRIPTION_INPUT
                 buzzer.set_mode(Buzzer.MODE_OFF)
                 continue
             
             if btn_cal.pressed():
-                button_press_feedback(buzzer)
                 info("Calibration button pressed - resetting counters")
                 drop_sensor.reset()
                 monitoring_state.reset_counters()
                 alarm_silenced = False
                 lcd.clear()
-                lcd_line(lcd, 0, "COUNTERS RESET")
+                lcd_line(lcd, 0, "CTRS RESET")
                 lcd_line(lcd, 1, "Prescription kept")
-                lcd_line(lcd, 2, "Monitoring...")
                 utime.sleep(2)
             
             if btn_term.pressed():
-                button_press_feedback(buzzer)
                 info("Terminate button pressed")
                 state = config.STATE_TERMINATED
                 continue
@@ -899,9 +880,9 @@ def main():
             
             # Display bubble alert
             lcd.clear()
-            lcd_line(lcd, 0, "** BUBBLE DETECTED **")
-            lcd_line(lcd, 1, "CHECK IV LINE!")
-            lcd_line(lcd, 2, "Press ACK to clear")
+            lcd_line(lcd, 0, "!BUBBLE DETECTED!")
+            lcd_line(lcd, 1, "Press ACK")
+            lcd_line(lcd, 2, "CHECK IV LINE!")
             lcd_line(lcd, 3, mode.upper())
             
             # All LEDs red
@@ -922,7 +903,6 @@ def main():
             
             # Wait for acknowledge
             if btn_ack.pressed():
-                button_press_feedback(buzzer)
                 info("Bubble acknowledged")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
@@ -930,7 +910,6 @@ def main():
                 state = config.STATE_MONITORING
             
             if btn_term.pressed():
-                button_press_feedback(buzzer)
                 info("Terminate button pressed from bubble alarm state")
                 state = config.STATE_TERMINATED
         
@@ -947,10 +926,10 @@ def main():
             info("State: NO FLOW")
             
             lcd.clear()
-            lcd_line(lcd, 0, "** NO FLOW **")
+            lcd_line(lcd, 0, "!NO FLOW!")
             lcd_line(lcd, 1, "Check line/clamp")
-            lcd_line(lcd, 2, f"Vol: {int(monitoring_state.delivered_ml)}/{prescription.target_volume_ml}mL")
-            lcd_line(lcd, 3, "ACK=Continue")
+            lcd_line(lcd, 2, f"V:{int(monitoring_state.delivered_ml)}/{prescription.target_volume_ml}")
+            lcd_line(lcd, 3, "ACK:Continue")
             
             # Red LED
             led_red.on()
@@ -977,18 +956,15 @@ def main():
                 state = config.STATE_MONITORING
             
             if btn_ack.pressed():
-                button_press_feedback(buzzer)
                 info("No-flow acknowledged")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_new.pressed():
-                button_press_feedback(buzzer)
                 info("New IV button pressed from no-flow state")
                 state = config.STATE_PRESCRIPTION_INPUT
             
             if btn_term.pressed():
-                button_press_feedback(buzzer)
                 info("Terminate button pressed from no-flow state")
                 state = config.STATE_TERMINATED
         
@@ -1005,10 +981,10 @@ def main():
             info("State: TIME ELAPSED (underdelivered)")
             
             lcd.clear()
-            lcd_line(lcd, 0, "** TIME ELAPSED **")
-            lcd_line(lcd, 1, "Volume incomplete")
-            lcd_line(lcd, 2, f"{int(monitoring_state.delivered_ml)}/{prescription.target_volume_ml}mL ({int(monitoring_state.percent_delivered)}%)")
-            lcd_line(lcd, 3, "ACK=Continue")
+            lcd_line(lcd, 0, "TIME ELAPSED")
+            lcd_line(lcd, 1, f"V:{int(monitoring_state.delivered_ml)}/{prescription.target_volume_ml} ({int(monitoring_state.percent_delivered)}%)")
+            lcd_line(lcd, 2, "Continue monitoring")
+            lcd_line(lcd, 3, "ACK:Continue")
             
             # Yellow LED
             led_red.off()
@@ -1035,19 +1011,16 @@ def main():
                 state = config.STATE_COMPLETE
             
             if btn_ack.pressed():
-                button_press_feedback(buzzer)
                 info("Time elapsed acknowledged")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
                 state = config.STATE_MONITORING
             
             if btn_new.pressed():
-                button_press_feedback(buzzer)
                 info("New IV button pressed from time-elapsed state")
                 state = config.STATE_PRESCRIPTION_INPUT
             
             if btn_term.pressed():
-                button_press_feedback(buzzer)
                 info("Terminate button pressed from time-elapsed state")
                 state = config.STATE_TERMINATED
         
@@ -1065,9 +1038,8 @@ def main():
             
             lcd.clear()
             lcd_line(lcd, 0, "INFUSION COMPLETE")
-            lcd_line(lcd, 1, f"{int(monitoring_state.delivered_ml)}mL delivered")
-            lcd_line(lcd, 2, "100%")
-            lcd_line(lcd, 3, "Press NEW or TERM")
+            lcd_line(lcd, 1, f"Delivered:{int(monitoring_state.delivered_ml)}mL")
+            lcd_line(lcd, 3, "Press NEW/TERM")
             
             # Green LED
             led_red.off()
@@ -1087,19 +1059,16 @@ def main():
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_ack.pressed():
-                button_press_feedback(buzzer)
                 info("Acknowledge button pressed from complete state")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_new.pressed():
-                button_press_feedback(buzzer)
                 info("New IV button pressed from complete state")
                 state = config.STATE_PRESCRIPTION_INPUT
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_term.pressed():
-                button_press_feedback(buzzer)
                 info("Terminate button pressed from complete state")
                 state = config.STATE_TERMINATED
         
