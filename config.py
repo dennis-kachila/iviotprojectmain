@@ -4,6 +4,15 @@ All system-wide configuration values and defaults
 """
 
 # ============================================================================
+# DEVELOPMENT/TESTING MODE
+# ============================================================================
+
+BYPASS_KEYPAD_INPUT = True  # Set to True to bypass keypad input with default test values
+TEST_VOLUME_ML = 500        # Default volume when keypad bypassed (mL)
+TEST_DURATION_MIN = 30      # Default duration when keypad bypassed (minutes)
+TEST_DRIP_FACTOR = 20       # Default drip factor when keypad bypassed (gtt/mL)
+
+# ============================================================================
 # PRESCRIPTION DEFAULTS
 # ============================================================================
 

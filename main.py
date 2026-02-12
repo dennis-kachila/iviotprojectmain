@@ -483,7 +483,19 @@ def check_internet_available(sms):
 # ============================================================================
 
 def input_volume(lcd, keypad_input):
-    """Input target volume via keypad"""
+    """Input target volume via keypad or bypass with test value"""
+    # Bypass keypad input for testing
+    if config.BYPASS_KEYPAD_INPUT:
+        info(f"KEYPAD BYPASS: Using test volume {config.TEST_VOLUME_ML} mL")
+        lcd.clear()
+        lcd_line(lcd, 0, "IV PRESCRPTON")
+        lcd_line(lcd, 1, "KEYPAD BYPASS")
+        lcd_line(lcd, 2, f"Vol:{config.TEST_VOLUME_ML}mL")
+        lcd_line(lcd, 3, "Testing mode")
+        utime.sleep(2)
+        return config.TEST_VOLUME_ML
+    
+    # Normal keypad input
     lcd.clear()
     lcd_line(lcd, 0, "IV PRESCRPTON")
     lcd_line(lcd, 1, "Enter Vol (mL)")
@@ -513,7 +525,19 @@ def input_volume(lcd, keypad_input):
 
 
 def input_duration(lcd, keypad_input):
-    """Input duration via keypad"""
+    """Input duration via keypad or bypass with test value"""
+    # Bypass keypad input for testing
+    if config.BYPASS_KEYPAD_INPUT:
+        info(f"KEYPAD BYPASS: Using test duration {config.TEST_DURATION_MIN} min")
+        lcd.clear()
+        lcd_line(lcd, 0, "IV PRESCRPTON")
+        lcd_line(lcd, 1, "KEYPAD BYPASS")
+        lcd_line(lcd, 2, f"Time:{config.TEST_DURATION_MIN}min")
+        lcd_line(lcd, 3, "Testing mode")
+        utime.sleep(2)
+        return config.TEST_DURATION_MIN
+    
+    # Normal keypad input
     lcd.clear()
     lcd_line(lcd, 0, "IV PRESCRPTON")
     lcd_line(lcd, 1, "Enter Time (min)")
@@ -543,7 +567,19 @@ def input_duration(lcd, keypad_input):
 
 
 def input_drip_factor(lcd, keypad_input):
-    """Input drip factor via keypad (optional)"""
+    """Input drip factor via keypad or bypass with test value"""
+    # Bypass keypad input for testing
+    if config.BYPASS_KEYPAD_INPUT:
+        info(f"KEYPAD BYPASS: Using test drip factor {config.TEST_DRIP_FACTOR} gtt/mL")
+        lcd.clear()
+        lcd_line(lcd, 0, "IV PRESCRPTON")
+        lcd_line(lcd, 1, "KEYPAD BYPASS")
+        lcd_line(lcd, 2, f"Drip:{config.TEST_DRIP_FACTOR}")
+        lcd_line(lcd, 3, "Testing mode")
+        utime.sleep(2)
+        return config.TEST_DRIP_FACTOR
+    
+    # Normal keypad input
     lcd.clear()
     lcd_line(lcd, 0, "IV PRESCRPTON")
     lcd_line(lcd, 1, f"Drip Factor")
