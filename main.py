@@ -45,29 +45,59 @@ SMS_API_KEY = ""
 # ============================================================================
 
 class DebouncedButton:
-    """Hardware button with software debouncing"""
+    """Hardware button with software debouncing and hold detection"""
     def __init__(self, pin, debounce_ms=30):
         self.pin = Pin(pin, Pin.IN, Pin.PULL_DOWN)
         self.debounce_ms = debounce_ms
         self._last_state = 0
         self._stable_state = 0
         self._last_change = utime.ticks_ms()
+        self._press_start = 0
+        self._hold_triggered = False
 
     def read(self):
         return self.pin.value()
 
     def pressed(self):
+        """Returns True on button press (rising edge)"""
         now = utime.ticks_ms()
         state = self.read()
         if state != self._last_state:
             self._last_state = state
             self._last_change = now
+            if state == 1:
+                self._press_start = now
+                self._hold_triggered = False
         if utime.ticks_diff(now, self._last_change) > self.debounce_ms:
             if state != self._stable_state:
                 self._stable_state = state
                 if state == 1:  # Rising edge
                     return True
         return False
+    
+    def is_held(self):
+        """Returns True if button is currently being held down"""
+        return self._stable_state == 1
+    
+    def pressed_for(self, duration_ms):
+        """Returns True if button has been held for specified duration (only triggers once per press)"""
+        if self._hold_triggered:
+            return False
+        
+        if self._stable_state == 1 and self._press_start > 0:
+            now = utime.ticks_ms()
+            hold_duration = utime.ticks_diff(now, self._press_start)
+            if hold_duration >= duration_ms:
+                self._hold_triggered = True
+                return True
+        return False
+    
+    def get_hold_duration(self):
+        """Returns current hold duration in milliseconds (0 if not held)"""
+        if self._stable_state == 1 and self._press_start > 0:
+            now = utime.ticks_ms()
+            return utime.ticks_diff(now, self._press_start)
+        return 0
 
 
 # ============================================================================
@@ -157,7 +187,7 @@ class SmsSender:
             self.connected = False
 
     def connect_wifi(self, ssid, password, timeout_s=15):
-        """Connect to WiFi"""
+        """Connect to WiFi using standard Pico pattern"""
         if not network:
             warning("Network module not available")
             return False
@@ -168,6 +198,8 @@ class SmsSender:
             
             if wlan.isconnected():
                 info("WiFi already connected")
+                config = wlan.ifconfig()
+                info(f"IP: {config[0]}, Gateway: {config[2]}, DNS: {config[3]}")
                 self.connected = True
                 return True
             
@@ -175,13 +207,16 @@ class SmsSender:
             wlan.connect(ssid, password)
             
             start = utime.time()
-            while not wlan.isconnected():
+            while wlan.isconnected() == False:
                 if utime.time() - start > timeout_s:
                     warning("WiFi connection timeout")
                     return False
                 utime.sleep(0.5)
             
-            info(f"WiFi connected: {wlan.ifconfig()[0]}")
+            config = wlan.ifconfig()
+            info(f"WiFi connected - IP: {config[0]}")
+            info(f"Gateway: {config[2]}, DNS: {config[3]}")
+            
             self.connected = True
             return True
             
@@ -200,8 +235,16 @@ class SmsSender:
                 timeout=timeout_s
             )
             response.close()
+            info("Internet test successful")
             return True
-        except:
+        except OSError as e:
+            if e.args[0] == -2:
+                warning(f"Internet test failed: DNS resolution error (code -2)")
+            else:
+                warning(f"Internet test failed: OSError {e.args[0]}")
+            return False
+        except Exception as e:
+            warning(f"Internet test failed: {e}")
             return False
 
     def send(self, message):
@@ -232,6 +275,12 @@ class SmsSender:
             info(f"SMS sent: {message}")
             return True
             
+        except OSError as e:
+            if e.args[0] == -2:
+                error(f"SMS send error: DNS resolution failed (code -2) - Check DNS configuration")
+            else:
+                error(f"SMS send error: OSError {e.args[0]} - {e}")
+            return False
         except Exception as e:
             error(f"SMS send error: {e}")
             return False
@@ -634,6 +683,11 @@ def main():
     i2c = I2C(0, scl=Pin(config.PIN_I2C_SCL), sda=Pin(config.PIN_I2C_SDA), freq=config.I2C_FREQ)
     lcd = I2cLcd(i2c, config.LCD_I2C_ADDR, config.LCD_ROWS, config.LCD_COLS)
     
+    # Show booting message immediately
+    lcd.clear()
+    lcd_line(lcd, 0, "SYSTEM BOOTING")
+    lcd_line(lcd, 1, "Please wait...")
+    
     # Buttons
     btn_ack = DebouncedButton(config.PIN_BUTTON_ACK)
     btn_new = DebouncedButton(config.PIN_BUTTON_NEW)
@@ -775,8 +829,13 @@ def main():
             bubble_detector.reset()
             
             # Send start SMS
+            info(f"Attempting start SMS - mode={mode}, sms.connected={sms.connected}")
             if mode == config.MODE_ONLINE:
-                sms.send(f"IV monitoring started: {prescription.target_volume_ml}mL over {prescription.duration_minutes}min (0% delivered).")
+                sms_message = f"IV monitoring started: {prescription.target_volume_ml}mL over {prescription.duration_minutes}min (0% delivered)."
+                sms_sent = sms.send(sms_message)
+                info(f"Start SMS send result: {sms_sent} - Message: {sms_message}")
+            else:
+                info(f"Start SMS skipped - mode is {mode} (not ONLINE)")
             monitoring_state.milestone_flags[0] = True
             
             info(f"Prescription: {prescription.target_volume_ml}mL / {prescription.duration_minutes}min / {prescription.drip_factor_gtt_ml}gtt/mL")
@@ -848,15 +907,24 @@ def main():
             # Check milestone alerts
             for milestone in config.MILESTONES:
                 if monitoring_state.check_milestone(milestone):
-                    info(f"Milestone: {milestone}%")
+                    info(f"Milestone reached: {milestone}%")
                     if mode == config.MODE_ONLINE and milestone > 0:
-                        sms.send(f"IV delivered {milestone}%.")
+                        sms_message = f"IV delivered {milestone}%."
+                        sms_sent = sms.send(sms_message)
+                        info(f"Milestone SMS ({milestone}%) send result: {sms_sent}")
+                    elif milestone > 0:
+                        info(f"Milestone SMS ({milestone}%) skipped - mode is {mode}")
             
             # Low volume alert
             if monitoring_state.remaining_ml < config.LOW_VOLUME_THRESHOLD_ML:
                 if not monitoring_state.low_volume_sent:
+                    info(f"Low volume threshold reached: {int(monitoring_state.remaining_ml)}mL")
                     if mode == config.MODE_ONLINE:
-                        sms.send(f"IV low volume ({int(monitoring_state.remaining_ml)} mL).")
+                        sms_message = f"IV low volume ({int(monitoring_state.remaining_ml)} mL)."
+                        sms_sent = sms.send(sms_message)
+                        info(f"Low volume SMS send result: {sms_sent}")
+                    else:
+                        info(f"Low volume SMS skipped - mode is {mode}")
                     monitoring_state.low_volume_sent = True
                 
                 # Buzzer for low volume
@@ -901,9 +969,16 @@ def main():
                 lcd_line(lcd, 1, "Prescr. kept")
                 utime.sleep(2)
             
-            if btn_term.pressed():
+            # Terminate button (2-second hold required)
+            if btn_term.is_held():
+                hold_duration = btn_term.get_hold_duration()
+                if hold_duration < 2000:
+                    # Show hold feedback
+                    lcd_line(lcd, 1, f"Hold {int((2000-hold_duration)/1000)+1}s to END...")
+            
+            if btn_term.pressed_for(2000):
                 button_press_feedback(buzzer)
-                info("Terminate button pressed")
+                info("Terminate button held for 2 seconds")
                 led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
                 continue
@@ -934,8 +1009,13 @@ def main():
             
             # Send SMS (once)
             if mode == config.MODE_ONLINE and not monitoring_state.bubble_sent:
-                sms.send("BUBBLE DETECTED - CHECK IV LINE")
+                info("Sending bubble detection SMS")
+                sms_message = "BUBBLE DETECTED - CHECK IV LINE"
+                sms_sent = sms.send(sms_message)
+                info(f"Bubble SMS send result: {sms_sent}")
                 monitoring_state.bubble_sent = True
+            elif not monitoring_state.bubble_sent:
+                info(f"Bubble SMS skipped - mode is {mode}")
             
             # Bubble alarm sound
             if not alarm_silenced:
@@ -945,15 +1025,27 @@ def main():
             
             # Wait for acknowledge
             if btn_ack.pressed():
-                info("Bubble acknowledged")
+                info("Bubble acknowledged - returning to monitoring")
                 alarm_silenced = True
                 buzzer.set_mode(Buzzer.MODE_OFF)
                 bubble_detector.clear_bubble()
+                monitoring_state.bubble_sent = False  # Reset flag for next bubble
+                # Show acknowledgement feedback
+                lcd.clear()
+                lcd_line(lcd, 0, "BUBBLE CORRECTED")
+                lcd_line(lcd, 1, "Resuming monitor...")
+                utime.sleep(1)
                 state = config.STATE_MONITORING
             
-            if btn_term.pressed():
+            # Terminate button (2-second hold required)
+            if btn_term.is_held():
+                hold_duration = btn_term.get_hold_duration()
+                if hold_duration < 2000:
+                    lcd_line(lcd, 1, f"Hold {int((2000-hold_duration)/1000)+1}s...")
+            
+            if btn_term.pressed_for(2000):
                 button_press_feedback(buzzer)
-                info("Terminate button pressed from bubble alarm state")
+                info("Terminate button held from bubble alarm state")
                 led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
         
@@ -982,8 +1074,13 @@ def main():
             
             # Send SMS (once)
             if mode == config.MODE_ONLINE and not monitoring_state.no_flow_sent:
-                sms.send(f"NO FLOW - Check IV line ({int(monitoring_state.delivered_ml)}mL delivered)")
+                info(f"Sending no-flow SMS - {int(monitoring_state.delivered_ml)}mL delivered")
+                sms_message = f"NO FLOW - Check IV line ({int(monitoring_state.delivered_ml)}mL delivered)"
+                sms_sent = sms.send(sms_message)
+                info(f"No-flow SMS send result: {sms_sent}")
                 monitoring_state.no_flow_sent = True
+            elif not monitoring_state.no_flow_sent:
+                info(f"No-flow SMS skipped - mode is {mode}")
             
             # No-flow alarm sound
             if not alarm_silenced:
@@ -1008,11 +1105,16 @@ def main():
                 info("New IV button pressed from no-flow state")
                 state = config.STATE_PRESCRIPTION_INPUT
             
-            if btn_term.pressed():
+            # Terminate button (2-second hold required)
+            if btn_term.is_held():
+                hold_duration = btn_term.get_hold_duration()
+                if hold_duration < 2000:
+                    lcd_line(lcd, 1, f"Hold {int((2000-hold_duration)/1000)+1}s...")
+            
+            if btn_term.pressed_for(2000):
                 button_press_feedback(buzzer)
-                info("Terminate button pressed from no-flow state")
+                info("Terminate button held from no-flow state")
                 led_red.on()  # Red LED for termination
-                state = config.STATE_TERMINATED
                 state = config.STATE_TERMINATED
         
         # ====================================================================
@@ -1040,8 +1142,13 @@ def main():
             
             # Send SMS (once)
             if mode == config.MODE_ONLINE and not monitoring_state.time_elapsed_sent:
-                sms.send(f"TIME ELAPSED - Volume incomplete: {int(monitoring_state.delivered_ml)}mL/{prescription.target_volume_ml}mL")
+                info(f"Sending time elapsed SMS - {int(monitoring_state.delivered_ml)}mL/{prescription.target_volume_ml}mL delivered")
+                sms_message = f"TIME ELAPSED - Volume incomplete: {int(monitoring_state.delivered_ml)}mL/{prescription.target_volume_ml}mL"
+                sms_sent = sms.send(sms_message)
+                info(f"Time elapsed SMS send result: {sms_sent}")
                 monitoring_state.time_elapsed_sent = True
+            elif not monitoring_state.time_elapsed_sent:
+                info(f"Time elapsed SMS skipped - mode is {mode}")
             
             # Alert sound
             if not alarm_silenced:
@@ -1067,9 +1174,15 @@ def main():
                 info("New IV button pressed from time-elapsed state")
                 state = config.STATE_PRESCRIPTION_INPUT
             
-            if btn_term.pressed():
+            # Terminate button (2-second hold required)
+            if btn_term.is_held():
+                hold_duration = btn_term.get_hold_duration()
+                if hold_duration < 2000:
+                    lcd_line(lcd, 1, f"Hold {int((2000-hold_duration)/1000)+1}s...")
+            
+            if btn_term.pressed_for(2000):
                 button_press_feedback(buzzer)
-                info("Terminate button pressed from time-elapsed state")
+                info("Terminate button held from time-elapsed state")
                 led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
         
@@ -1097,8 +1210,13 @@ def main():
             
             # Send SMS (once)
             if not monitoring_state.milestone_flags[100]:
+                info("Infusion 100% complete")
                 if mode == config.MODE_ONLINE:
-                    sms.send("IV completed 100%.")
+                    sms_message = "IV completed 100%."
+                    sms_sent = sms.send(sms_message)
+                    info(f"Completion SMS send result: {sms_sent}")
+                else:
+                    info(f"Completion SMS skipped - mode is {mode}")
                 monitoring_state.milestone_flags[100] = True
             
             # Completion tone
@@ -1117,9 +1235,15 @@ def main():
                 state = config.STATE_PRESCRIPTION_INPUT
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
-            if btn_term.pressed():
+            # Terminate button (2-second hold required)
+            if btn_term.is_held():
+                hold_duration = btn_term.get_hold_duration()
+                if hold_duration < 2000:
+                    lcd_line(lcd, 3, f"Hold {int((2000-hold_duration)/1000)+1}s...")
+            
+            if btn_term.pressed_for(2000):
                 button_press_feedback(buzzer)
-                info("Terminate button pressed from complete state")
+                info("Terminate button held from complete state")
                 led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
         
