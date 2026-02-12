@@ -722,12 +722,14 @@ def main():
     monitoring_state = None  # type: MonitoringState | None
     
     alarm_silenced = False
+    terminated_screen_shown = False  # Track if termination screen has been displayed
     last_network_check = utime.time()
     last_lcd_update = utime.ticks_ms()
     
     info("Entering main loop...")
     
-    while state != config.STATE_TERMINATED:
+    # Main loop continues until user powers off or explicit shutdown
+    while True:
         
         # ====================================================================
         # STATE: PRESCRIPTION INPUT
@@ -735,6 +737,7 @@ def main():
         
         if state == config.STATE_PRESCRIPTION_INPUT:
             info("State: PRESCRIPTION INPUT")
+            terminated_screen_shown = False  # Reset termination flag
             lcd.clear()
             lcd_line(lcd, 0, "PRESCRPTON ENTRY")
             lcd_line(lcd, 1, "Preparing...")
@@ -1109,6 +1112,48 @@ def main():
                 info("Terminate button pressed from complete state")
                 state = config.STATE_TERMINATED
         
+        # ====================================================================
+        # STATE: TERMINATED (SESSION ENDED - WAITING FOR RESTART)
+        # ====================================================================
+        
+        elif state == config.STATE_TERMINATED:
+            # Display termination screen once
+            if not terminated_screen_shown:
+                info("Session terminated - waiting for restart command")
+                lcd.clear()
+                lcd_line(lcd, 0, "SESSION ENDED")
+                lcd_line(lcd, 1, "Monitoring stopped")
+                lcd_line(lcd, 2, "#NEW: Restart")
+                lcd_line(lcd, 3, "*CAL: Tools")
+                buzzer.set_mode(Buzzer.MODE_OFF)
+                led_red.off()
+                led_yellow.off()
+                led_green.off()
+                terminated_screen_shown = True
+            
+            # Button handlers to restart or access tools
+            if btn_new.pressed():
+                button_press_feedback(buzzer)
+                info("New IV button pressed from terminated state - restarting")
+                terminated_screen_shown = False  # Reset flag for next termination
+                state = config.STATE_PRESCRIPTION_INPUT
+                continue
+            
+            if btn_cal.pressed():
+                button_press_feedback(buzzer)
+                info("Calibration button pressed from terminated state")
+                # Reset system and return to prescription input
+                info("Returning to prescription input")
+                terminated_screen_shown = False  # Reset flag for next termination
+                state = config.STATE_PRESCRIPTION_INPUT
+                continue
+            
+            if btn_ack.pressed():
+                button_press_feedback(buzzer)
+                info("Acknowledge button pressed from terminated state")
+                # Just silence any residual sounds
+                buzzer.set_mode(Buzzer.MODE_OFF)
+        
         # Update buzzer
         buzzer.update()
         
@@ -1117,7 +1162,7 @@ def main():
         gc.collect()
     
     # ========================================================================
-    # SHUTDOWN
+    # SHUTDOWN - This code is now only reached if loop is explicitly broken
     # ========================================================================
     
     info("Terminating session...")
