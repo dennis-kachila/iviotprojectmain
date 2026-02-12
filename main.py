@@ -486,7 +486,7 @@ def input_volume(lcd, keypad_input):
     """Input target volume via keypad"""
     lcd.clear()
     lcd_line(lcd, 0, "IV PRESCRPTON")
-    lcd_line(lcd, 1, "Entry Vol (mL):")
+    lcd_line(lcd, 1, "Enter Vol (mL)")
     lcd_line(lcd, 3, "#=OK *=Backsp")
     
     keypad_input.clear()
@@ -516,7 +516,7 @@ def input_duration(lcd, keypad_input):
     """Input duration via keypad"""
     lcd.clear()
     lcd_line(lcd, 0, "IV PRESCRPTON")
-    lcd_line(lcd, 1, "Time (min):")
+    lcd_line(lcd, 1, "Enter Time (min)")
     lcd_line(lcd, 3, "#=OK *=Backsp")
     
     keypad_input.clear()
@@ -546,8 +546,8 @@ def input_drip_factor(lcd, keypad_input):
     """Input drip factor via keypad (optional)"""
     lcd.clear()
     lcd_line(lcd, 0, "IV PRESCRPTON")
-    lcd_line(lcd, 1, f"Drip gtt/mL")
-    lcd_line(lcd, 2, f"*=Dflt {config.DEFAULT_DRIP_FACTOR}")
+    lcd_line(lcd, 1, f"Drip Factor")
+    lcd_line(lcd, 2, f"Default: {config.DEFAULT_DRIP_FACTOR}")
     lcd_line(lcd, 3, "#=OK")
     
     keypad_input.clear()
@@ -666,7 +666,7 @@ def main():
         lcd_line(lcd, 1, "No WiFi Config")
         warning("Mode: LOCAL-ONLY (No credentials)")
     
-    lcd_line(lcd, 3, f"Mode: {mode.upper()}")
+    lcd_line(lcd, 3, f"Mode:{mode.upper()}")
     utime.sleep(2)
     
     # ========================================================================
@@ -722,8 +722,9 @@ def main():
             # Display calculated rate
             lcd.clear()
             lcd_line(lcd, 0, "PRESCRPTON SET")
-            lcd_line(lcd, 1, f"V:{prescription.target_volume_ml}mL T:{prescription.duration_minutes}m")
-            lcd_line(lcd, 3, f"{int(prescription.gtt_per_min_target or 0)} gtt/min")
+            lcd_line(lcd, 1, f"V:{prescription.target_volume_ml}mL")
+            lcd_line(lcd, 2, f"T:{prescription.duration_minutes}min")
+            lcd_line(lcd, 3, f"{int(prescription.gtt_per_min_target or 0)}gtt/min")
             utime.sleep(3)
             
             # Initialize monitoring state
@@ -858,7 +859,7 @@ def main():
                 alarm_silenced = False
                 lcd.clear()
                 lcd_line(lcd, 0, "CTRS RESET")
-                lcd_line(lcd, 1, "Prescription kept")
+                lcd_line(lcd, 1, "Prescr. kept")
                 utime.sleep(2)
             
             if btn_term.pressed():
@@ -982,8 +983,8 @@ def main():
             
             lcd.clear()
             lcd_line(lcd, 0, "TIME ELAPSED")
-            lcd_line(lcd, 1, f"V:{int(monitoring_state.delivered_ml)}/{prescription.target_volume_ml} ({int(monitoring_state.percent_delivered)}%)")
-            lcd_line(lcd, 2, "Continue monitoring")
+            lcd_line(lcd, 1, f"V:{int(monitoring_state.delivered_ml)}/{prescription.target_volume_ml}mL")
+            lcd_line(lcd, 2, f"Pct:{int(monitoring_state.percent_delivered)}%")
             lcd_line(lcd, 3, "ACK:Continue")
             
             # Yellow LED
@@ -1037,8 +1038,8 @@ def main():
             info("State: COMPLETE")
             
             lcd.clear()
-            lcd_line(lcd, 0, "INFUSION COMPLETE")
-            lcd_line(lcd, 1, f"Delivered:{int(monitoring_state.delivered_ml)}mL")
+            lcd_line(lcd, 0, "INFUSION DONE")
+            lcd_line(lcd, 1, f"V:{int(monitoring_state.delivered_ml)}mL")
             lcd_line(lcd, 3, "Press NEW/TERM")
             
             # Green LED
@@ -1091,7 +1092,7 @@ def main():
     
     lcd.clear()
     lcd_line(lcd, 0, "SESSION ENDED")
-    lcd_line(lcd, 1, "System terminated")
+    lcd_line(lcd, 1, "Terminated")
     lcd_line(lcd, 2, "")
     lcd_line(lcd, 3, "")
     
