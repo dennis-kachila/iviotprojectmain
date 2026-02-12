@@ -969,18 +969,23 @@ def main():
                 lcd_line(lcd, 1, "Prescr. kept")
                 utime.sleep(2)
             
-            # Terminate button (2-second hold required)
-            if btn_term.is_held():
-                hold_duration = btn_term.get_hold_duration()
-                if hold_duration < 2000:
-                    # Show hold feedback
-                    lcd_line(lcd, 1, f"Hold {int((2000-hold_duration)/1000)+1}s to END...")
-            
-            if btn_term.pressed_for(2000):
+            # Terminate button - single press ends session
+            if btn_term.pressed():
                 button_press_feedback(buzzer)
-                info("Terminate button held for 2 seconds")
+                info("Terminate button pressed")
                 led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
+                continue
+            
+            # DEMONSTRATION: Hold terminate for 2 seconds to trigger bubble alarm
+            if btn_term.pressed_for(2000):
+                info("Terminate held 2s - triggering bubble demonstration")
+                lcd.clear()
+                lcd_line(lcd, 0, "DEMO: BUBBLE")
+                lcd_line(lcd, 1, "Bubble Present...")
+                utime.sleep(1)
+                state = config.STATE_BUBBLE_ALARM
+                alarm_silenced = False
                 continue
         
         # ====================================================================
@@ -1037,15 +1042,10 @@ def main():
                 utime.sleep(1)
                 state = config.STATE_MONITORING
             
-            # Terminate button (2-second hold required)
-            if btn_term.is_held():
-                hold_duration = btn_term.get_hold_duration()
-                if hold_duration < 2000:
-                    lcd_line(lcd, 1, f"Hold {int((2000-hold_duration)/1000)+1}s...")
-            
-            if btn_term.pressed_for(2000):
+            # Terminate button - single press ends session
+            if btn_term.pressed():
                 button_press_feedback(buzzer)
-                info("Terminate button held from bubble alarm state")
+                info("Terminate button pressed from bubble alarm state")
                 led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
         
@@ -1105,15 +1105,10 @@ def main():
                 info("New IV button pressed from no-flow state")
                 state = config.STATE_PRESCRIPTION_INPUT
             
-            # Terminate button (2-second hold required)
-            if btn_term.is_held():
-                hold_duration = btn_term.get_hold_duration()
-                if hold_duration < 2000:
-                    lcd_line(lcd, 1, f"Hold {int((2000-hold_duration)/1000)+1}s...")
-            
-            if btn_term.pressed_for(2000):
+            # Terminate button - single press ends session
+            if btn_term.pressed():
                 button_press_feedback(buzzer)
-                info("Terminate button held from no-flow state")
+                info("Terminate button pressed from no-flow state")
                 led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
         
@@ -1174,15 +1169,10 @@ def main():
                 info("New IV button pressed from time-elapsed state")
                 state = config.STATE_PRESCRIPTION_INPUT
             
-            # Terminate button (2-second hold required)
-            if btn_term.is_held():
-                hold_duration = btn_term.get_hold_duration()
-                if hold_duration < 2000:
-                    lcd_line(lcd, 1, f"Hold {int((2000-hold_duration)/1000)+1}s...")
-            
-            if btn_term.pressed_for(2000):
+            # Terminate button - single press ends session
+            if btn_term.pressed():
                 button_press_feedback(buzzer)
-                info("Terminate button held from time-elapsed state")
+                info("Terminate button pressed from time-elapsed state")
                 led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
         
@@ -1235,15 +1225,10 @@ def main():
                 state = config.STATE_PRESCRIPTION_INPUT
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
-            # Terminate button (2-second hold required)
-            if btn_term.is_held():
-                hold_duration = btn_term.get_hold_duration()
-                if hold_duration < 2000:
-                    lcd_line(lcd, 3, f"Hold {int((2000-hold_duration)/1000)+1}s...")
-            
-            if btn_term.pressed_for(2000):
+            # Terminate button - single press ends session
+            if btn_term.pressed():
                 button_press_feedback(buzzer)
-                info("Terminate button held from complete state")
+                info("Terminate button pressed from complete state")
                 led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
         
