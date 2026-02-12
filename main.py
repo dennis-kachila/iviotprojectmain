@@ -902,7 +902,9 @@ def main():
                 utime.sleep(2)
             
             if btn_term.pressed():
+                button_press_feedback(buzzer)
                 info("Terminate button pressed")
+                led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
                 continue
         
@@ -950,7 +952,9 @@ def main():
                 state = config.STATE_MONITORING
             
             if btn_term.pressed():
+                button_press_feedback(buzzer)
                 info("Terminate button pressed from bubble alarm state")
+                led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
         
         # ====================================================================
@@ -1005,7 +1009,10 @@ def main():
                 state = config.STATE_PRESCRIPTION_INPUT
             
             if btn_term.pressed():
+                button_press_feedback(buzzer)
                 info("Terminate button pressed from no-flow state")
+                led_red.on()  # Red LED for termination
+                state = config.STATE_TERMINATED
                 state = config.STATE_TERMINATED
         
         # ====================================================================
@@ -1061,7 +1068,9 @@ def main():
                 state = config.STATE_PRESCRIPTION_INPUT
             
             if btn_term.pressed():
+                button_press_feedback(buzzer)
                 info("Terminate button pressed from time-elapsed state")
+                led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
         
         # ====================================================================
@@ -1109,7 +1118,9 @@ def main():
                 buzzer.set_mode(Buzzer.MODE_OFF)
             
             if btn_term.pressed():
+                button_press_feedback(buzzer)
                 info("Terminate button pressed from complete state")
+                led_red.on()  # Red LED for termination
                 state = config.STATE_TERMINATED
         
         # ====================================================================
