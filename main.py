@@ -687,12 +687,14 @@ def main():
     lcd.clear()
     lcd_line(lcd, 0, "SYSTEM BOOTING")
     lcd_line(lcd, 1, "Please wait...")
+    utime.sleep(2)
     
     # Buttons
     btn_ack = DebouncedButton(config.PIN_BUTTON_ACK)
     btn_new = DebouncedButton(config.PIN_BUTTON_NEW)
     btn_term = DebouncedButton(config.PIN_BUTTON_TERM)
     btn_cal = DebouncedButton(config.PIN_BUTTON_CAL)
+    btn_demo = DebouncedButton(config.PIN_BUTTON_DEMO)
     
     # LEDs
     led_red = Pin(config.PIN_LED_RED, Pin.OUT)
@@ -977,9 +979,9 @@ def main():
                 state = config.STATE_TERMINATED
                 continue
             
-            # DEMONSTRATION: Hold terminate for 2 seconds to trigger bubble alarm
-            if btn_term.pressed_for(2000):
-                info("Terminate held 2s - triggering bubble demonstration")
+            # DEMONSTRATION: Press demo button to trigger bubble alarm
+            if btn_demo.pressed():
+                info("Demo button pressed - triggering bubble demonstration")
                 lcd.clear()
                 lcd_line(lcd, 0, "DEMO: BUBBLE")
                 lcd_line(lcd, 1, "Bubble Present...")

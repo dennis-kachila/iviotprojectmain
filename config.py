@@ -53,6 +53,7 @@ PIN_BUTTON_ACK = 8          # Acknowledge/silence alarm button
 PIN_BUTTON_NEW = 9          # New IV / reset prescription button
 PIN_BUTTON_TERM = 10        # Terminate session button
 PIN_BUTTON_CAL = 12         # Calibration / reset counters button
+PIN_BUTTON_DEMO = 14        # Demo trigger button (bubble simulation)
 
 # LEDs
 PIN_LED_RED = 18            # Red LED (critical/fault)
