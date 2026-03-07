@@ -143,6 +143,6 @@ BUTTON_CHECK_INTERVAL_MS = 50   # Button polling interval
 # LOGGING SETTINGS
 # ============================================================================
 
-LOG_FILE = "system.txt"
-LOG_FILE_BACKUP = "system.txt.bak"
+LOG_FILE = "system.log"
+LOG_FILE_BACKUP = "system.log.bak"
 LOG_MAX_SIZE = 50000  # Maximum log file size before rotation (bytes)
