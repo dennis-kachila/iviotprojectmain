@@ -64,9 +64,10 @@ The system supports **human-in-the-loop control** through push buttons, ensuring
 
 ### Core Components & Files
 
-- **main.py** (520 lines): Main application state machine, handles boot sequence, calibration, monitoring loop, and alert logic
-- **hx711.py**: Load cell driver for reading raw weight data from 24-bit ADC with SPI protocol
+- **main.py** (614 lines): Main application state machine, handles boot sequence, calibration, monitoring loop, and alert logic; fully instrumented with logging
+- **hx711.py**: Load cell driver for reading raw weight data from 24-bit ADC with SPI protocol; includes device diagnostics logging
 - **i2c_lcd.py** / **lcd_api.py**: LCD display drivers (20x4 I2C display at address 0x27)
+- **logger.py**: Custom MicroPython-compatible logging module; writes timestamped logs to `system.log` with rotation
 - **secrets.json**: WiFi SSID/password and Africa's Talking SMS API credentials (user-provided, not in repo)
 - **calibration.json**: Persisted calibration offset/scale (generated after first calibration)
 
@@ -246,7 +247,55 @@ When sensor fault: Display "Sensor fault" + error description.
 
 ## Project-Specific Patterns & Implementation Details
 
-### Error Handling & Sensor Validation
+### Logging System (logger.py)
+
+**Custom MicroPython Logger** - Provides file-based logging compatible with Pico's limited resources.
+
+**Log Levels:**
+- `DEBUG` - Verbose diagnostic info (sensor ready, etc.)
+- `INFO` - General operational events (boot, WiFi connect, SMS sends, milestones)
+- `WARNING` - Non-critical issues (WiFi fail, low volume alert in LOCAL mode)
+- `ERROR` - Recoverable errors (recalibration fail, sensor read timeout)
+- `CRITICAL` - Fatal conditions (sensor fault, invalid calibration)
+
+**Log Output:**
+- File: `system.txt` (max 50KB, rotates to `system.txt.bak`)
+- Format: `[YYYY-MM-DD HH:MM:SS] [LEVEL] message`
+- Example: `[2026-02-10 14:32:45] [INFO] WiFi connected successfully`
+- Note: Uses `.txt` extension for Wokwi simulator compatibility (Wokwi doesn't support `.log` files)
+
+**Usage in Code:**
+```python
+from logger import info, warning, error, critical, debug
+
+info("System booting")
+warning("WiFi connection failed")
+error("Sensor fault: HX711 timeout")
+critical("Invalid calibration data")
+```
+
+**Log Points in main.py:**
+- Boot sequence: initialization, WiFi connection, mode detection
+- Calibration: start, success/failure, values saved
+- Monitoring: start, mode switches, button presses
+- Alerts: low volume, 25%/50%/100% milestones, completion
+- Errors: sensor faults, timeouts, invalid data
+
+**Reading Logs:**
+```python
+from logger import read_log, clear_log
+logs = read_log(50)  # Last 50 lines from system.txt
+clear_log()          # Clear log file
+```
+
+**Accessing Logs in Wokwi:**
+- Check `system.txt` file in Wokwi file explorer
+- Check `system.txt.bak` for rotated/archived logs
+
+**Troubleshooting:**
+- If `system.log` grows large, it automatically rotates
+- Logging failures fall back to console (print) silently
+- Use `logger.py` functions independently from main loop (non-blocking)
 
 **Sensor Fault Conditions:**
 1. `raw == None` → HX711 timeout (device not Ready within 1 second)
@@ -432,16 +481,18 @@ Returns `None` if no valid reading within 1 second → triggers sensor fault
 
 ### Local Testing (No Hardware)
 
-**Wokwi Simulator:**
-- Use `wokwi.toml` for firmware + network forwarding configuration
-- Simulator provides virtual I2C LCD, GPIO, but limited HX711 simulation
-- Network forwarding from localhost:4000 to target:80 configured in wokwi.toml
-- Useful for testing UI flow, button logic, and LCD display updates
+**Wokwi Simulator - Simulation Mode:**
+- Set `SIMULATION_MODE = True` in main.py (line 18)
+- System will use **mock sensor values** instead of real HX711 readings
+- Simulates IV delivery over ~60 seconds (1500 mL → 0 mL)
+- Calibration uses preset values: `offset = -453021`,  `scale = 907`
+- Useful for testing UI flow, alerts, and button logic without real sensor
 
-**Limitations:**
-- HX711 cannot realistically simulate varying load cell weights
-- Network testing limited (simulator has network access but routing may differ)
-- Battery/power scenarios not simulated
+**Wokwi Simulator - Real Sensor Mode:**
+- Set `SIMULATION_MODE = False` (default)
+- Requires HX711 properly wired to Pico in Wokwi
+- Test actual sensor readings and calibration process
+- May fail if Wokwi doesn't fully simulate HX711
 
 ### Calibration Testing
 
@@ -782,9 +833,10 @@ The system runs on **MicroPython** firmware for Raspberry Pi Pico / Pico W.
 - urequests (HTTP requests for SMS API and internet testing)
 
 **Hardware Drivers (included in this project):**
-- hx711 (load cell driver)
-- lcd_api (LCD base class)
-- i2c_lcd (I2C LCD display interface)
+- hx711.py (load cell driver)
+- i2c_lcd.py (I2C LCD display interface)
+- lcd_api.py (LCD base class)
+- logger.py (file-based logging system)
 
 **Special Handling:**
 - `network` and `urequests` are conditionally imported in main.py
